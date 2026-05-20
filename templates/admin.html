@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+<meta charset="UTF-8">
+<title>Panel Administrador</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    background:#f3efe7;
+    margin:0;
+    padding:20px;
+}
+
+.top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+}
+
+h1{
+    color:#203a57;
+}
+
+button{
+    background:#203a57;
+    color:white;
+    border:none;
+    padding:10px 15px;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+button:hover{
+    opacity:.9;
+}
+
+.logout{
+    background:#d9534f;
+}
+
+.reporte{
+    background:#9b7734;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 0 10px rgba(0,0,0,.1);
+    margin-bottom:20px;
+}
+
+.stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    margin-bottom:20px;
+}
+
+.stat{
+    background:#2e4358;
+    color:white;
+    padding:30px;
+    border-radius:15px;
+    text-align:center;
+}
+
+.stat h2{
+    margin:0;
+    font-size:35px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+th{
+    background:#9b7734;
+    color:white;
+    padding:12px;
+}
+
+td{
+    padding:10px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
+}
+
+input{
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #ccc;
+}
+
+.flex{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="top">
+
+<h1>Panel Administrador</h1>
+
+<div>
+
+<a href="/descargar_reporte">
+<button class="reporte">
+⬇ Descargar reporte
+</button>
+</a>
+
+<a href="/logout_admin">
+<button class="logout">
+Cerrar sesión
+</button>
+</a>
+
+</div>
+
+</div>
+
+<div class="stats">
+
+<div class="stat">
+<h2>{{ resumen|length }}</h2>
+<p>Registros</p>
+</div>
+
+<div class="stat">
+<h2>
+{{ resumen|selectattr('horas_extra','ne',0)|list|length }}
+</h2>
+<p>Con horas extra</p>
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>Agregar colaborador</h2>
+
+<div class="flex">
+
+<input id="nuevo_nombre" placeholder="Nombre">
+<input id="nuevo_pin" placeholder="PIN">
+<input id="nuevo_puesto" placeholder="Puesto">
+
+<button onclick="agregarColaborador()">
+Agregar
+</button>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>Modificar colaboradores activos</h2>
+
+<table>
+
+<thead>
+
+<tr>
+<th>Nombre</th>
+<th>PIN</th>
+<th>Puesto</th>
+<th>Acción</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for c in colaboradores %}
+
+<tr>
+
+<td>
+<input id="nombre_{{ c.id }}" value="{{ c.nombre }}">
+</td>
+
+<td>
+<input id="pin_{{ c.id }}" value="{{ c.pin }}">
+</td>
+
+<td>
+<input id="puesto_{{ c.id }}" value="{{ c.puesto }}">
+</td>
+
+<td>
+
+<button onclick="editarColaborador('{{ c.id }}')">
+Guardar cambios
+</button>
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>Registros</h2>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Colaborador</th>
+<th>Puesto</th>
+<th>Fecha</th>
+<th>Entrada</th>
+<th></th>
+<th>Salida</th>
+<th></th>
+<th>Horas trabajadas</th>
+<th>Horas extra</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for r in resumen %}
+
+<tr>
+
+<td>{{ r.nombre }}</td>
+
+<td>{{ r.puesto }}</td>
+
+<td>{{ r.fecha }}</td>
+
+<td>
+
+<input
+id="entrada_{{ r.entrada_id }}"
+value="{{ r.entrada }}"
+>
+
+</td>
+
+<td>
+
+{% if r.entrada_id %}
+
+<button onclick="editarRegistro(
+'{{ r.entrada_id }}',
+document.getElementById('entrada_{{ r.entrada_id }}').value
+)">
+Guardar
+</button>
+
+{% endif %}
+
+</td>
+
+<td>
+
+<input
+id="salida_{{ r.salida_id }}"
+value="{{ r.salida }}"
+>
+
+</td>
+
+<td>
+
+{% if r.salida_id %}
+
+<button onclick="editarRegistro(
+'{{ r.salida_id }}',
+document.getElementById('salida_{{ r.salida_id }}').value
+)">
+Guardar
+</button>
+
+{% endif %}
+
+</td>
+
+<td>{{ r.horas_trabajadas }}</td>
+
+<td>{{ r.horas_extra }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+<script>
+
+function agregarColaborador() {
+
+    const nombre = document.getElementById("nuevo_nombre").value;
+    const pin = document.getElementById("nuevo_pin").value;
+    const puesto = document.getElementById("nuevo_puesto").value;
+
+    fetch("/agregar_colaborador", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+
+        body:
+            "nombre=" + encodeURIComponent(nombre) +
+            "&pin=" + encodeURIComponent(pin) +
+            "&puesto=" + encodeURIComponent(puesto)
+
+    })
+
+    .then(r => r.json())
+
+    .then(data => {
+
+        alert(data.message);
+
+        if(data.success){
+            location.reload();
+        }
+
+    });
+
+}
+
+function editarColaborador(id){
+
+    const nombre =
+    document.getElementById("nombre_" + id).value;
+
+    const pin =
+    document.getElementById("pin_" + id).value;
+
+    const puesto =
+    document.getElementById("puesto_" + id).value;
+
+    fetch("/editar_colaborador",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/x-www-form-urlencoded"
+        },
+
+        body:
+            "id=" + encodeURIComponent(id)
+            + "&nombre=" + encodeURIComponent(nombre)
+            + "&pin=" + encodeURIComponent(pin)
+            + "&puesto=" + encodeURIComponent(puesto)
+
+    })
+
+    .then(r => r.json())
+
+    .then(data => {
+
+        alert(data.message);
+
+        if(data.success){
+            location.reload();
+        }
+
+    });
+
+}
+
+function editarRegistro(id, hora) {
+
+    fetch("/editar_registro", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+
+        body:
+            "id=" + encodeURIComponent(id)
+            + "&hora=" + encodeURIComponent(hora)
+
+    })
+
+    .then(r => r.json())
+
+    .then(data => {
+
+        alert(data.message);
+
+        if(data.success){
+            location.reload();
+        }
+
+    });
+
+}
+
+</script>
+
+</body>
+</html>

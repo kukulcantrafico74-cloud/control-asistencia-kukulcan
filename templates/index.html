@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Control de Asistencia Kukulcán</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f3ea;
+            margin: 0;
+            padding: 25px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        h2 {
+            color: #8B6A2F;
+            margin-top: 0;
+        }
+
+        .card {
+            background: white;
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 25px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        select, input, button {
+            width: 90%;
+            max-width: 400px;
+            padding: 13px;
+            margin: 9px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-login {
+            background: #8B6A2F;
+            color: white;
+        }
+
+        .entrada {
+            background: #27ae60;
+            color: white;
+        }
+
+        .salida {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-admin {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .btn-logout {
+            background: #555;
+            color: white;
+        }
+
+        .hora{
+    color:#2c3e50;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.logo{
+    width:180px;
+    display:block;
+    margin:20px auto;
+}
+    </style>
+</head>
+
+<body>
+    <img src="/static/logo.png" class="logo">
+    
+    <h1>Control de Asistencia</h1>
+    <h2>Refrigerados Kukulcán</h2>
+
+    <div class="card" id="login">
+        <h3>Acceso Colaborador</h3>
+
+        <select id="nombre">
+            <option value="">Selecciona tu nombre</option>
+
+            {% for c in colaboradores %}
+                <option value="{{ c.nombre }}">{{ c.nombre }} - {{ c.puesto }}</option>
+            {% endfor %}
+        </select>
+
+        <input type="password" id="pin" placeholder="PIN de 4 dígitos" maxlength="4">
+
+        <button class="btn-login" onclick="iniciarSesion()">
+            Iniciar sesión
+        </button>
+    </div>
+
+    <div class="card" id="panel" style="display:none;">
+        <h3 id="saludo"></h3>
+
+        <button class="entrada" onclick="registrar('entrada')">
+            ✅ Registrar entrada
+        </button>
+
+        <button class="salida" onclick="registrar('salida')">
+            ❌ Registrar salida
+        </button>
+
+        <button class="btn-logout" onclick="logout()">
+            Cerrar sesión
+        </button>
+    </div>
+
+    <div class="card">
+        <p>Hora actual:</p>
+        <p class="hora" id="hora"></p>
+    </div>
+
+    <div class="card">
+        <h3>Acceso Administrador</h3>
+
+        <input type="text" id="admin_user" placeholder="Usuario administrador">
+
+        <input type="password" id="admin_password" placeholder="Contraseña">
+
+        <button class="btn-admin" onclick="loginAdmin()">
+            Entrar al administrador
+        </button>
+    </div>
+
+<script>
+function actualizarHora() {
+    document.getElementById("hora").textContent =
+        new Date().toLocaleTimeString("es-MX");
+}
+
+setInterval(actualizarHora, 1000);
+actualizarHora();
+
+function iniciarSesion() {
+    const nombre = document.getElementById("nombre").value;
+    const pin = document.getElementById("pin").value;
+
+    if (!nombre || !pin) {
+        alert("Selecciona tu nombre e ingresa tu PIN");
+        return;
+    }
+
+    fetch("/login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body:
+            "nombre=" + encodeURIComponent(nombre) +
+            "&pin=" + encodeURIComponent(pin)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById("login").style.display = "none";
+            document.getElementById("panel").style.display = "block";
+            document.getElementById("saludo").textContent = "Hola, " + nombre;
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function registrar(tipo) {
+    if (!confirm("¿Registrar " + tipo.toUpperCase() + " ahora?")) {
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        alert("Tu navegador no permite ubicación");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            fetch("/registrar", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "tipo=" + encodeURIComponent(tipo) +
+                    "&lat=" + encodeURIComponent(lat) +
+                    "&lon=" + encodeURIComponent(lon)
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message);
+            });
+        },
+        function() {
+            alert("No se pudo obtener tu ubicación. Activa el GPS y permite el acceso.");
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+function loginAdmin() {
+    const usuario = document.getElementById("admin_user").value;
+    const password = document.getElementById("admin_password").value;
+
+    fetch("/admin_login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body:
+            "usuario=" + encodeURIComponent(usuario) +
+            "&password=" + encodeURIComponent(password)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = "/admin";
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function logout() {
+    fetch("/logout")
+        .then(() => location.reload());
+}
+</script>
+
+</body>
+</html>
